@@ -1,0 +1,11 @@
+C:\repos\TiketWave\Reserva.Domain\bin\Debug\net9.0\Reserva.Domain.deps.json
+C:\repos\TiketWave\Reserva.Domain\bin\Debug\net9.0\Reserva.Domain.dll
+C:\repos\TiketWave\Reserva.Domain\bin\Debug\net9.0\Reserva.Domain.pdb
+C:\repos\TiketWave\Reserva.Domain\obj\Debug\net9.0\Reserva.Domain.GeneratedMSBuildEditorConfig.editorconfig
+C:\repos\TiketWave\Reserva.Domain\obj\Debug\net9.0\Reserva.Domain.AssemblyInfoInputs.cache
+C:\repos\TiketWave\Reserva.Domain\obj\Debug\net9.0\Reserva.Domain.AssemblyInfo.cs
+C:\repos\TiketWave\Reserva.Domain\obj\Debug\net9.0\Reserva.Domain.csproj.CoreCompileInputs.cache
+C:\repos\TiketWave\Reserva.Domain\obj\Debug\net9.0\Reserva.Domain.dll
+C:\repos\TiketWave\Reserva.Domain\obj\Debug\net9.0\refint\Reserva.Domain.dll
+C:\repos\TiketWave\Reserva.Domain\obj\Debug\net9.0\Reserva.Domain.pdb
+C:\repos\TiketWave\Reserva.Domain\obj\Debug\net9.0\ref\Reserva.Domain.dll
