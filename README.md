@@ -1,291 +1,147 @@
-# TiketWave - Microservicio de Reservas
-
-## Descripción General
-Microservicio para la gestión de reservas de eventos, implementando patrones de diseño State y Observer, con soporte para caching distribuido y control de concurrencia.
-
-## Arquitectura
-
-### 1. Estructura del Proyecto
-```
-TiketWave/
-├── Reserva.API/                 # Capa de presentación
-│   ├── Controllers/            # Controladores REST
-│   ├── Extensions/            # Extensiones de configuración
-│   ├── Middleware/           # Middlewares personalizados
-│   └── Program.cs           # Punto de entrada y configuración
-├── Reserva.Domain/          # Capa de dominio
-│   ├── Entidades/         # Modelos de dominio
-│   ├── Interfaces/       # Contratos y abstracciones
-│   └── Patrones/        # Implementaciones de patrones
-└── Reserva.Infrastructure/  # Capa de infraestructura
-    ├── DAO/              # Acceso a datos
-    ├── Persistencia/    # Contexto EF Core
-    └── Servicios/      # Servicios de infraestructura
-```
-# TiketWave - Microservicio de Reservas
-
-Este documento describe en detalle cómo está organizado el microservicio de reservas, qué hace cada capa y cómo fluyen los datos entre componentes. Incluye ejemplos prácticos, configuraciones, diagramas y recomendaciones para pruebas y despliegue.
+# TiketWave - Documentación técnica
 
 ## Índice
-- Descripción general
-- Estructura del proyecto
-- Detalle por capas (qué hacen y cómo lo hacen)
-- Modelos y esquema de datos
-- Flujo de datos (secuencias de creación y cambio de estado)
-- Contratos y APIs públicas
-- Configuración y variables importantes
-- Cómo ejecutar y probar (unit y integración)
-- Migraciones y base de datos
-- Consideraciones de concurrencia y caching
-- Troubleshooting y preguntas frecuentes
-- Próximos pasos y mejoras
 
-## 1. Descripción general
-El servicio gestiona reservas de eventos con foco en: consistencia de inventario, control de concurrencia, trazabilidad y extensibilidad. Está pensado para integrarse en una arquitectura de microservicios donde otras piezas (pago, notificaciones) reaccionan a eventos del dominio.
+1. Visión general
+2. Estructura del repositorio
+3. Descripción detallada por componente
+	- `Reserva.API`
+	- `Reserva.Domain`
+	- `Reserva.Infrastructure`
+4. Flujo completo: desde petición hasta persistencia
+	- Secuencia paso a paso
+	- Diagramas de alto nivel
+5. Estructura de datos
+	- Entidades C# (ejemplos)
+	- Esquema SQL sugerido
+6. Consideraciones operativas
+7. Próximos pasos
 
-## 2. Estructura del proyecto (resumen de carpetas)
+## 1. Visión general
 
+Este documento describe cómo funciona cada parte del microservicio de reservas, cómo se orquesta una reserva desde que llega una petición HTTP hasta que queda persistida en la base de datos, y la estructura de los datos. Está pensado para desarrolladores e ingenieros de plataforma que deban operar o extender el servicio.
+
+## 2. Estructura del repositorio
+
+Raíz del proyecto (resumen):
+
+```
 TiketWave/
-- Reserva.API/                 # Capa Web API (Controllers, Middleware, Extensions, Program.cs)
-- Reserva.Domain/              # Lógica de negocio: entidades, interfaces y patrones (State/Observer)
-- Reserva.Infrastructure/      # Implementaciones: EF Core, repositorios (DAO), servicios externos (Redis, RedLock)
+├── Reserva.API/                 # Capa Web API (Controllers, Middleware, Extensions, Program.cs)
+├── Reserva.Domain/              # Lógica de negocio: entidades, interfaces y patrones (State/Observer)
+└── Reserva.Infrastructure/      # Implementaciones: EF Core, repositorios (DAO), servicios externos (Redis, RedLock)
+```
 
-Rutas y ficheros clave (ejemplos):
-- `Reserva.API/Program.cs` — arranque, pipeline, Swagger, Serilog
-- `Reserva.API/Extensions/DependencyInjection.cs` — registra DbContext, repositorios y servicios
-- `Reserva.API/Middleware/ProxyValidationMiddleware.cs` — validaciones pre-request
-- `Reserva.API/Controllers/ReservaController.cs` — endpoints REST
-- `Reserva.Domain/Entidades/Reserva.cs` — entidad dominio
-- `Reserva.Domain/Patrones/State/*` — estados y lógica de transición
-- `Reserva.Infrastructure/Persistencia/ContextoReserva.cs` — DbContext EF Core
-- `Reserva.Infrastructure/DAO/ReservaRepository.cs` — implementación de `IReservaRepository`
+## 3. Descripción detallada por componente
 
-## 3. Detalle por capas: qué hacen y cómo lo hacen
+3.1 `Reserva.API` — capa HTTP / orquestación
 
-3.1 Capa de presentación — `Reserva.API`
-- Propósito: recibir peticiones HTTP, validar entrada, orquestar llamadas al dominio/infraestructura y devolver respuestas.
-- Componentes principales:
-  - Controllers: traducen DTOs HTTP a comandos del dominio y devuelven DTOs de respuesta.
-  - Middleware (ej. `ProxyValidationMiddleware`): cheques transversales (headers, auth, rate limit). Se ejecuta antes del controller y puede abortar la petición si no pasa checks.
-  - Extensions (`AddReservaServices`): encapsulan la configuración de dependencias (DbContext, repositorios, cache, MediatR, Polly).
-  - Swagger & OpenAPI: documentación interactiva disponible en `/swagger`.
+- Program.cs: configura pipeline, logging (Serilog), Swagger y registra servicios mediante `AddReservaServices`.
+- Controllers (por ejemplo `ReservaController`): reciben DTOs HTTP, validan entrada mínima y llaman a `IReservaRepository` para crear/consultar reservas.
+- Middleware (`ProxyValidationMiddleware`): responsable de checks transversales (headers, rate limit, cabeceras de tracing) y puede prevenir peticiones antes del handler.
+- Extensions (`DependencyInjection.cs`): registra `DbContext`, `IReservaRepository`, `ICacheService` y otras dependencias (MediatR, Polly, health checks).
 
-3.2 Capa de dominio — `Reserva.Domain`
-- Propósito: contener las reglas de negocio y modelos puros (sin dependencias infra).
-- Elementos destacados:
-  - Entidades: `Reserva` (Id, EventId, UserId, Cantidad, Estado, FechaCreacion, FechaExpiracion, Meta)
-  - Value Objects: si aplica (por ejemplo `Dinero`, `CantidadBoletos`).
-  - Patrones:
-    - State Pattern: los distintos estados de una reserva (Pendiente, Confirmada, Cancelada, Expirada) implementan la interfaz `IEstadoReserva` con métodos como `CanTransitionTo(...)` y `OnEnter(...)`.
-    - Observer Pattern: el dominio publica eventos internos (ej. `ReservaCreada`, `ReservaExpirada`, `ReservaConfirmada`) para notificar subscribers (servicio de notificaciones, auditoría, etc.).
-  - Interfaces: `IReservaRepository` (contrato para persistencia), `ICacheService` (abstracción de cache), `INotificationService` (para notificaciones externas si existen).
+3.2 `Reserva.Domain` — reglas de negocio y modelos puros
 
-3.3 Capa de infraestructura — `Reserva.Infrastructure`
-- Propósito: implementar los contratos del dominio y encapsular la interacción con recursos externos.
-- Implementaciones típicas:
-  - `ReservaRepository` (IReservaRepository): usa `ContextoReserva` (EF Core) y aplica patrones de concurrencia cuando intenta reservar stock.
-  - `ContextoReserva` (DbContext): define DbSet<Reserva>, configuración de modelos y mappings.
-  - `RedisCacheService` (ICacheService): caching de consultas frecuentes como `GetReservaById` o listados parciales.
-  - `RedLock` (con RedLock.net): para obtener locks distribuidos cuando se realiza reserva sobre inventario compartido.
+- Entidades: `Reserva`, `Asiento` (modelo del dominio con propiedades y tokens de concurrencia).
+- Patrones: State (gestiona transiciones de estado de una reserva), Observer (eventos de dominio como `ReservaCreada` o `ReservaExpirada`).
+- Interfaces: `IReservaRepository` (contrato para persistencia), `ICacheService` (caching), `INotificationService` (si aplica).
 
-## 4. Modelos y esquema de datos (ejemplo)
+3.3 `Reserva.Infrastructure` — implementación y recursos externos
 
-Entidad `Reserva` (simplificada):
-- Id (GUID) — PK
-- EventId (string) — id del evento
-- UserId (string) — id del usuario que reserva
-- Cantidad (int)
-- Estado (string / enum)
-- FechaCreacion (datetime)
-- FechaExpiracion (nullable datetime)
-- Metadata (jsonb) — datos opcionales
+- `ContextoReserva` (DbContext): define `DbSet<Reserva>` y `DbSet<Asiento>` y configura tokens de concurrencia (RowVersion) y `UseIdentityColumn()` para PK ints.
+- `ReservaRepository`: implementación del DAO. Aquí se deben aplicar transacciones, locking distribuido (RedLock) o estrategias `SELECT FOR UPDATE` para evitar oversell.
+- `RedisCacheService` (placeholder): almacenamiento en cache para lecturas frecuentes.
 
-SQL sugerido (esquema básico):
+## 4. Flujo completo: desde petición hasta persistencia
 
-CREATE TABLE reservas (
-  id uuid PRIMARY KEY,
-  event_id text NOT NULL,
-  user_id text NOT NULL,
-  cantidad int NOT NULL,
-  estado text NOT NULL,
-  fecha_creacion timestamptz NOT NULL DEFAULT now(),
-  fecha_expiracion timestamptz,
-  metadata jsonb
+Resumen: el flujo sigue este esquema: cliente -> API -> middleware -> repositorio -> BD -> cache -> notificaciones.
+
+4.1 Secuencia paso a paso (creación de reserva)
+
+1. Cliente envía POST /api/reservas con payload: { eventId, userId, cantidad }
+2. `ProxyValidationMiddleware` valida cabeceras y seguridad básica. Si falla, se devuelve error 4xx.
+3. `ReservaController.Create` valida payload y construye una instancia `Reserva` (sin asignar Id: la BD se encargará).
+4. El controller llama a `IReservaRepository.CreateAsync(reserva)`.
+5. En `ReservaRepository.TryReserveAsync` o la lógica de reserva:
+	- Intentar adquirir lock distribuido (RedLock) para el `asientoId`.
+	- Dentro del lock: verificar disponibilidad leyendo `Asientos` con `SELECT ... FOR UPDATE` o mediante EF Core en una transacción.
+	- Si hay disponibilidad: marcar `Asiento.Disponible = false` y crear `Reserva` (Add + SaveChanges).
+	- Si no hay disponibilidad: devolver false / error y liberar lock.
+6. `SaveChanges` envía la inserción a PostgreSQL; la columna `id` (int identity) será asignada por la BD.
+7. Una vez confirmado el commit, el repositorio actualiza el cache Redis (Set reserva por id) y publica un evento `ReservaCreada` al bus/internamente (observer).
+8. El controller devuelve 201 Created con la reserva creada (incluyendo `id`), o el error apropiado.
+
+4.2 Diagrama simplificado (secuencia)
+
+Cliente -> API (Controller) -> Middleware -> Repositorio -> BD
+													  -> Cache
+													  -> Observer/Event bus
+
+## 5. Estructura de datos
+
+5.1 Entidades en C# (ejemplos simplificados)
+
+Reserva.cs
+
+```csharp
+public class Reserva
+{
+	 public int Id { get; set; }                // PK: identity generado por BD
+	 public int AsientoId { get; set; }         // FK a Asiento.Id
+	 public DateTime CreatedAt { get; set; }
+	 public string Estado { get; set; } = "Temporal";
+	 public byte[]? RowVersion { get; set; }    // Concurrency token
+}
+```
+
+Asiento.cs
+
+```csharp
+public class Asiento
+{
+	 public int Id { get; set; }                // PK: identity generado por BD
+	 public string Codigo { get; set; }
+	 public bool Disponible { get; set; } = true;
+	 public byte[]? RowVersion { get; set; }
+}
+```
+
+5.2 Esquema SQL sugerido (PostgreSQL)
+
+```sql
+CREATE TABLE asientos (
+  id serial PRIMARY KEY,
+  codigo text NOT NULL,
+  disponible boolean NOT NULL DEFAULT true,
+  row_version bytea
 );
 
-Índices recomendados:
-- index on (event_id)
-- index on (user_id)
-- index on (estado)
-
-## 5. Flujo de datos: secuencias críticas
-
-5.1 Creación de una reserva (secuencia)
-
-mermaid
-sequenceDiagram
-  participant C as Cliente
-  participant A as API (Controller)
-  participant M as ProxyValidationMiddleware
-  participant R as ReservaRepository
-  participant DB as PostgreSQL
-  participant RC as RedisCache
-  participant O as Observers (notifs)
-
-  C->>A: POST /api/reservas {eventId,userId,cantidad}
-  A->>M: Pasa por middleware (headers, auth, rate limit)
-  M-->>A: Validación OK
-  A->>R: TryReserveAsync(command)
-  R->>R: Obtener lock distribuido (RedLock)
-  R->>DB: SELECT ... FOR UPDATE / verificar inventario
-  DB-->>R: Disponibilidad
-  R->>DB: INSERT reserva
-  DB-->>R: OK (id)
-  R->>RC: Actualizar cache (Set reserva)
-  R->>O: Publicar evento ReservaCreada
-  R-->>A: Resultado (Reserva creada)
-  A-->>C: 201 Created {id,...}
-
-5.2 Cambio de estado (ej. confirmación post-pago)
-- Se recibe notificación o endpoint que cambia estado a Confirmada.
-- El flujo valida transición permitida mediante State Pattern (`IEstadoReserva.CanTransitionTo`), persiste y publica evento `ReservaConfirmada`.
-
-## 6. Contratos y signatures (ejemplos)
-
-IReservaRepository (resumen):
-- Task<Reserva?> GetByIdAsync(Guid id);
-- Task<IEnumerable<Reserva>> ListByEventAsync(string eventId);
-- Task<Guid> TryReserveAsync(ReservaCreateCommand command); // maneja locking y persistencia
-- Task<bool> ChangeStatusAsync(Guid id, string nuevoEstado);
-
-ICacheService (resumen):
-- Task<T?> GetAsync<T>(string key);
-- Task SetAsync<T>(string key, T value, TimeSpan? ttl = null);
-- Task RemoveAsync(string key);
-
-IEstadoReserva (resumen):
-- bool CanTransitionTo(EstadoDestino destino);
-- void OnEnter(Reserva reserva);
-
-Eventos de dominio (ejemplos):
-- ReservaCreada { ReservaId, EventId, UserId }
-- ReservaConfirmada { ReservaId }
-- ReservaExpirada { ReservaId }
-
-## 7. Configuración y variables importantes
-
-appsettings.json (claves importantes):
-- ConnectionStrings:ReservaPostgres — cadena de conexión a PostgreSQL
-- Redis: Cache connection (host:port)
-- RedLock: configuración (expiry, retryCount, retryDelay)
-- Reservation:DefaultExpiryMinutes — tiempo por defecto para expiración de reservas
-
-Ejemplo mínimo `appsettings.Development.json`:
-
-```json
-{
-  "ConnectionStrings": {
-    "ReservaPostgres": "Host=localhost;Database=ReservaDb;Username=postgres;Password=postgres"
-  },
-  "Redis": {
-    "Connection": "localhost:6379"
-  },
-  "Reservation": {
-    "DefaultExpiryMinutes": 15
-  }
-}
+CREATE TABLE reservas (
+  id serial PRIMARY KEY,
+  asiento_id integer NOT NULL REFERENCES asientos(id),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  estado text NOT NULL DEFAULT 'Temporal',
+  row_version bytea
+);
 ```
 
-## 8. Cómo ejecutar y probar
+## 6. Consideraciones operativas
 
-8.1 Preparar entorno
+- Backups: antes de modificaciones estructurales (migraciones de PK), ejecutar `pg_dump` o snapshot.
+- Migraciones: para cambiar tipos de PK (uuid -> int) usar estrategia segura (añadir columna int, poblarla, swap en ventana de mantenimiento). Ver `docs/migration-uuid-to-int.md`.
+- Concurrencia: favor usar locking (RedLock o SELECT FOR UPDATE) y `RowVersion` para detectar conflictos.
 
-Powershell (ejemplos copy/paste):
+## 7. Próximos pasos
 
-```powershell
-# Restaurar y compilar
-dotnet restore
-dotnet build
-
-# Crear y aplicar migraciones (si aún no existen)
-dotnet ef migrations add InitialCreate --project Reserva.Infrastructure --startup-project Reserva.API
-dotnet ef database update --project Reserva.Infrastructure --startup-project Reserva.API
-
-# Ejecutar API
-cd Reserva.API
-dotnet run
-```
-
-8.2 Probar endpoints (ejemplos)
-
-Usando curl / HTTPie / Postman:
-
-POST crear reserva:
-
-```http
-POST http://localhost:5190/api/reservas
-Content-Type: application/json
-
-{
-  "eventId": "ev-123",
-  "userId": "user-45",
-  "cantidad": 2
-}
-```
-
-GET reserva por id:
-
-```http
-GET http://localhost:5190/api/reservas/{id}
-```
-
-8.3 Pruebas unitarias y de integración
-
-- Unit: usar xUnit / Moq para probar lógica de `State` y validaciones del dominio.
-- Integration: usar `WebApplicationFactory<TEntryPoint>` (Microsoft.AspNetCore.Mvc.Testing) para levantar la API en memoria y ejecutar flujos completos contra un Postgres/Redis de prueba (docker-compose ideal).
-
-Ejemplo rápido (xUnit): probar que `Pendiente` -> `Expirada` ocurre después del tiempo configurado (ejecutar lógica de `TemporalState` simulando tiempo o inyectando reloj de prueba).
-
-## 9. Migraciones y base de datos
-
-- Las migraciones se mantienen en `Reserva.Infrastructure/Migrations`.
-- Comandos:
-
-```powershell
-dotnet ef migrations add <Nombre> --project Reserva.Infrastructure --startup-project Reserva.API
-dotnet ef database update --project Reserva.Infrastructure --startup-project Reserva.API
-```
-
-Si usas Docker Compose para local, añade servicios `postgres` y `redis` y configura las cadenas de conexión.
-
-## 10. Concurrencia y caching (detalles)
-
-- Locking: para evitar oversell, `TryReserveAsync` debe:
-  1) Intentar adquirir lock (RedLock) con timeout corto.
-  2) Dentro del lock, leer inventario con `SELECT ... FOR UPDATE` o leer y verificar contadores.
-  3) Realizar INSERT/UPDATE y liberar lock.
-
-- Cache: diseñar TTLs cortos para datos críticos (reserva por id) y usar strategies de invalidación en write-through (on write, invalidar o actualizar cache).
-
-- Expiración de reservas: el `TemporalState` puede programar expiraciones (por ejemplo via background worker o utilizando TTLs en Redis con key expirations que publiquen eventos cuando caducan).
-
-## 11. Troubleshooting y FAQs
-
-- Error: "No se puede conectar a Postgres": verifica `ConnectionStrings:ReservaPostgres` y que el servicio de Postgres esté accesible.
-- Error: "Lock not acquired": aumenta timeout del RedLock o revisa que Redis esté correctamente en cluster/replicado si usas RedLock.
-- Swagger no aparece: asegúrate que `app.UseSwagger()` y `app.UseSwaggerUI()` estén llamados en `Program.cs` bajo entorno de desarrollo o configurados para producción si es necesario.
-
-## 12. Buenas prácticas y próximos pasos
-
-- Añadir pruebas de integración E2E con base de datos y redis en CI (usar containers Docker en pipeline).
-- Implementar pruebas de carga para validar comportamiento bajo concurrencia.
-- Implementar tracing distribuido (OpenTelemetry) para correlación de operaciones entre servicios.
+- Crear tests de integración que levanten Postgres y Redis (docker-compose) y prueben altas concurrencias en el endpoint de creación.
+- Añadir migraciones EF Core que reflejen los cambios en el modelo (ya se agregó `UseIdentityColumn()` en `ContextoReserva`).
+- Establecer un pipeline CI que ejecute migraciones en un entorno de staging y corra tests de contrato.
 
 ---
 
-Si quieres, puedo:
-- Generar un Postman collection con ejemplos de endpoints.
-- Añadir un `docker-compose.yml` para levantar Postgres+Redis y ejecutar pruebas de integración locales.
-- Crear ejemplos de tests unitarios y de integración (xUnit) para las piezas críticas (State, TryReserveAsync).
+Si quieres, agrego:
+- Un Postman collection con ejemplos concretos.
+- Un `docker-compose.yml` para levantar Postgres + Redis localmente.
+- Una migración EF Core de ejemplo que introduce las columnas identity y el swap (esto requiere revisión antes de aplicar en producción).
 
-Dime cuál de estas tareas prefieres que haga a continuación y la implemento.

@@ -11,8 +11,8 @@ namespace Reserva.Domain.Interfaces
     public interface IReservaRepository
     {
         Task<Reserva.Domain.Entidades.Reserva> CreateAsync(Reserva.Domain.Entidades.Reserva reserva);
-        Task<Reserva.Domain.Entidades.Reserva?> GetAsync(Guid id);
-        Task<bool> TryReserveAsync(Guid asientoId, Guid reservaId);
-        Task ExpireAsync(Guid reservaId);
+    Task<Reserva.Domain.Entidades.Reserva?> GetAsync(int id);
+    Task<bool> TryReserveAsync(int asientoId, int reservaId);
+    Task ExpireAsync(int reservaId);
     }
 }

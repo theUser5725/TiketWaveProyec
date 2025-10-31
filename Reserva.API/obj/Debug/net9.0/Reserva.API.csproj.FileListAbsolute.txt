@@ -160,3 +160,4 @@ C:\repos\TiketWave\Reserva.API\obj\Debug\net9.0\ref\Reserva.API.dll
 C:\repos\TiketWave\Reserva.API\bin\Debug\net9.0\Swashbuckle.AspNetCore.Swagger.dll
 C:\repos\TiketWave\Reserva.API\bin\Debug\net9.0\Swashbuckle.AspNetCore.SwaggerGen.dll
 C:\repos\TiketWave\Reserva.API\bin\Debug\net9.0\Swashbuckle.AspNetCore.SwaggerUI.dll
+C:\repos\TiketWave\Reserva.API\obj\Debug\net9.0\Reserva.API.sourcelink.json

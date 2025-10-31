@@ -7,7 +7,8 @@ namespace Reserva.Domain.Entidades
     /// </summary>
     public class Asiento
     {
-        public Guid Id { get; set; }
+        // La PK es int y la genera la base de datos
+        public int Id { get; set; }
         public string Codigo { get; set; } = string.Empty; // ej. Fila-Asiento
         public bool Disponible { get; set; } = true;
         public byte[]? RowVersion { get; set; }

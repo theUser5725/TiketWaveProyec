@@ -10,14 +10,14 @@ namespace Reserva.Domain.Servicios
     public class AsignacionJusta
     {
         // Ejemplo de singleton in-memory para coordinación local.
-        private static readonly ConcurrentDictionary<Guid, byte> _reservas = new();
+        private static readonly ConcurrentDictionary<int, byte> _reservas = new();
 
-        public bool TryClaim(Guid asientoId)
+        public bool TryClaim(int asientoId)
         {
             return _reservas.TryAdd(asientoId, 0);
         }
 
-        public void Release(Guid asientoId)
+        public void Release(int asientoId)
         {
             _reservas.TryRemove(asientoId, out _);
         }

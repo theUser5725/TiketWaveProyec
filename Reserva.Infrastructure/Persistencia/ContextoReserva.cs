@@ -28,6 +28,16 @@ namespace Reserva.Infrastructure.Persistencia
             modelBuilder.Entity<Reserva.Domain.Entidades.Asiento>()
                 .Property<byte[]?>("RowVersion")
                 .IsRowVersion();
+
+            // Configurar que la PK int sea manejada como Identity por la base de datos.
+            // Esto es compatible con PostgreSQL (serial/identity) cuando EF Core aplica migraciones.
+            modelBuilder.Entity<Reserva.Domain.Entidades.Reserva>()
+                .Property<int>("Id")
+                .UseIdentityColumn();
+
+            modelBuilder.Entity<Reserva.Domain.Entidades.Asiento>()
+                .Property<int>("Id")
+                .UseIdentityColumn();
         }
     }
 }

@@ -15,3 +15,4 @@ C:\repos\TiketWave\Reserva.Infrastructure\obj\Debug\net9.0\refint\Reserva.Infras
 C:\repos\TiketWave\Reserva.Infrastructure\obj\Debug\net9.0\Reserva.Infrastructure.pdb
 C:\repos\TiketWave\Reserva.Infrastructure\obj\Debug\net9.0\Reserva.Infrastructure.genruntimeconfig.cache
 C:\repos\TiketWave\Reserva.Infrastructure\obj\Debug\net9.0\ref\Reserva.Infrastructure.dll
+C:\repos\TiketWave\Reserva.Infrastructure\obj\Debug\net9.0\Reserva.Infrastructure.sourcelink.json

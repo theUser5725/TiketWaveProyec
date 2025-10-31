@@ -26,7 +26,7 @@ namespace Reserva.API.Controllers
         {
             if (reserva == null) return BadRequest();
 
-            reserva.Id = Guid.NewGuid();
+            // El Id lo genera la base de datos (identity). Solo fijamos CreatedAt.
             reserva.CreatedAt = DateTime.UtcNow;
 
             var created = await _repo.CreateAsync(reserva);
@@ -35,7 +35,7 @@ namespace Reserva.API.Controllers
         }
 
         [HttpGet("{id}")]
-        public async Task<IActionResult> Get(Guid id)
+        public async Task<IActionResult> Get(int id)
         {
             var r = await _repo.GetAsync(id);
             if (r == null) return NotFound();

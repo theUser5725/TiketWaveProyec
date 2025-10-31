@@ -4,8 +4,8 @@ namespace Reserva.Domain.Patrones.Observer
 {
     public interface IEventoReserva
     {
-        Guid EventoId { get; }
-        Guid ReservaId { get; }
+    Guid EventoId { get; }
+    int ReservaId { get; }
         DateTime Timestamp { get; }
         string Tipo { get; }
         string? Datos { get; }
