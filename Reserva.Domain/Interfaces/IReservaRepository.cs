@@ -14,5 +14,7 @@ namespace Reserva.Domain.Interfaces
     Task<Reserva.Domain.Entidades.Reserva?> GetAsync(int id);
     Task<bool> TryReserveAsync(int asientoId, int reservaId);
     Task ExpireAsync(int reservaId);
+    Task<Reserva.Domain.Entidades.Asiento?> GetAsientoAsync(int id);
+    Task<Reserva.Domain.Entidades.Evento?> GetEventoAsync(int id);
     }
 }

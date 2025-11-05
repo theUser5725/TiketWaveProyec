@@ -32,6 +32,16 @@ namespace Reserva.Infrastructure.DAO
             return await _db.Reservas.FirstOrDefaultAsync(r => r.Id == id);
         }
 
+        public async Task<Reserva.Domain.Entidades.Asiento?> GetAsientoAsync(int id)
+        {
+            return await _db.Asientos.FirstOrDefaultAsync(a => a.Id == id);
+        }
+
+        public async Task<Reserva.Domain.Entidades.Evento?> GetEventoAsync(int id)
+        {
+            return await _db.Eventos.FirstOrDefaultAsync(e => e.Id == id);
+        }
+
         public async Task<bool> TryReserveAsync(int asientoId, int reservaId)
         {
             // Placeholder: implementar locking distribuido (RedLock) o SELECT ... FOR UPDATE

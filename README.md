@@ -259,7 +259,7 @@ de PostgreSQL (con datos seed) y Redis para cache/local testing sin depender de 
 
 - Credenciales (tal como están guardadas en este repositorio):
 	- Usuario: `tkwaver`
-	- Contraseña: `tkdpsw987`
+	- Contraseña: `tkwpsw987`
 	- Base de datos: `tkwaver_db`
 
 > Nota: las credenciales están registradas en `docker-compose.yml` y en `Reserva.API/appsettings.Development.json` para
@@ -270,7 +270,7 @@ de PostgreSQL (con datos seed) y Redis para cache/local testing sin depender de 
 
 - `docker-compose.yml`:
 	- Definido servicio `postgres` con las variables `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` apuntando a
-		`tkwaver` / `tkdpsw987` / `tkwaver_db`.
+		`tkwaver` / `tkwpsw987` / `tkwaver_db`.
 	- Montado `./scripts/init.sql` para ejecutar la inicialización de esquema y datos cuando el volumen es nuevo.
 
 - `scripts/init.sql`:
@@ -279,7 +279,7 @@ de PostgreSQL (con datos seed) y Redis para cache/local testing sin depender de 
 	- Otorga privilegios sobre tablas y secuencias al usuario `tkwaver` (GRANT ... TO tkwaver).
 
 - `Reserva.API/appsettings.Development.json`:
-	- Cadena de conexión de desarrollo actualizada para apuntar a `Host=localhost;Port=5432;Database=tkwaver_db;Username=tkwaver;Password=tkdpsw987`.
+		- Cadena de conexión de desarrollo actualizada para apuntar a `Host=localhost;Port=5432;Database=tkwaver_db;Username=tkwaver;Password=tkwpsw987`.
 
 - `scripts/recreate-db.ps1` (nuevo):
 	- Helper PowerShell que hace `docker-compose down -v` (borra volumen), `docker-compose up -d`, espera a que Postgres
@@ -333,12 +333,12 @@ docker logs tiketwave-db --tail 200
 
 - Ejecutar un comando psql dentro del contenedor (usando TCP loopback para evitar problemas de socket):
 ```powershell
-docker exec -e PGPASSWORD=tkdpsw987 tiketwave-db psql -h 127.0.0.1 -U tkwaver -d tkwaver_db -c '\dt'
+docker exec -e PGPASSWORD=tkwpsw987 tiketwave-db psql -h 127.0.0.1 -U tkwaver -d tkwaver_db -c '\dt'
 ```
 
 - Conectarte desde tu máquina si tienes `psql` instalado (host local):
 ```powershell
-psql "host=localhost port=5432 dbname=tkwaver_db user=tkwaver password=tkdpsw987"
+psql "host=localhost port=5432 dbname=tkwaver_db user=tkwaver password=tkwpsw987"
 ```
 
 - Si no quieres borrar el volumen pero necesitas crear/actualizar el usuario y la DB en un servidor ya existente, usa
@@ -351,7 +351,7 @@ psql "host=localhost port=5432 dbname=tkwaver_db user=tkwaver password=tkdpsw987
 -- Crear role si no existe y asignar contraseña
 DO $$ BEGIN
 	 IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'tkwaver') THEN
-			 CREATE ROLE tkwaver WITH LOGIN PASSWORD 'tkdpsw987';
+			CREATE ROLE tkwaver WITH LOGIN PASSWORD 'tkwpsw987';
 	 END IF;
 END $$;
 
@@ -371,14 +371,14 @@ GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO tkwaver;
 
 - Para volcar la base desde el host (requiere `pg_dump`):
 ```powershell
-docker exec -e PGPASSWORD=tkdpsw987 tiketwave-db pg_dump -U tkwaver -d tkwaver_db -F c -f /tmp/tkwaver_db.dump
+docker exec -e PGPASSWORD=tkwpsw987 tiketwave-db pg_dump -U tkwaver -d tkwaver_db -F c -f /tmp/tkwaver_db.dump
 docker cp tiketwave-db:/tmp/tkwaver_db.dump .\tkwaver_db.dump
 ```
 
 - Para restaurar un backup (restaura en una BD vacía o nueva):
 ```powershell
 docker cp .\tkwaver_db.dump tiketwave-db:/tmp/tkwaver_db.dump
-docker exec -e PGPASSWORD=tkdpsw987 tiketwave-db pg_restore -U tkwaver -d tkwaver_db /tmp/tkwaver_db.dump
+docker exec -e PGPASSWORD=tkwpsw987 tiketwave-db pg_restore -U tkwaver -d tkwaver_db /tmp/tkwaver_db.dump
 ```
 
 ## Migraciones EF Core (opcional)

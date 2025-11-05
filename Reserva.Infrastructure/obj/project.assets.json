@@ -2994,11 +2994,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\repos\\TiketWaveProyec-main\\Reserva.Infrastructure\\Reserva.Infrastructure.csproj",
+      "projectUniqueName": "c:\\repos\\TiketWaveProyec-main\\Reserva.Infrastructure\\Reserva.Infrastructure.csproj",
       "projectName": "Reserva.Infrastructure",
-      "projectPath": "C:\\repos\\TiketWaveProyec-main\\Reserva.Infrastructure\\Reserva.Infrastructure.csproj",
+      "projectPath": "c:\\repos\\TiketWaveProyec-main\\Reserva.Infrastructure\\Reserva.Infrastructure.csproj",
       "packagesPath": "C:\\Users\\Alan Rosales\\.nuget\\packages\\",
-      "outputPath": "C:\\repos\\TiketWaveProyec-main\\Reserva.Infrastructure\\obj\\",
+      "outputPath": "c:\\repos\\TiketWaveProyec-main\\Reserva.Infrastructure\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\Alan Rosales\\AppData\\Roaming\\NuGet\\NuGet.Config",
@@ -3015,8 +3015,8 @@
         "net9.0": {
           "targetAlias": "net9.0",
           "projectReferences": {
-            "C:\\repos\\TiketWaveProyec-main\\Reserva.Domain\\Reserva.Domain.csproj": {
-              "projectPath": "C:\\repos\\TiketWaveProyec-main\\Reserva.Domain\\Reserva.Domain.csproj"
+            "c:\\repos\\TiketWaveProyec-main\\Reserva.Domain\\Reserva.Domain.csproj": {
+              "projectPath": "c:\\repos\\TiketWaveProyec-main\\Reserva.Domain\\Reserva.Domain.csproj"
             }
           }
         }

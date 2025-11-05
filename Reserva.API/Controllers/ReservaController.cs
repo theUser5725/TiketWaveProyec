@@ -18,18 +18,48 @@ namespace Reserva.API.Controllers
         }
 
         /// <summary>
-        /// Endpoint de ejemplo para crear una reserva (esqueleto).
-        /// Implementar validaciones, idempotencia y locking en la implementación real.
+        /// Endpoint para crear una reserva. Valida que el evento exista y esté activo,
+        /// que el asiento pertenezca al estadio del evento y que esté disponible.
         /// </summary>
-    [HttpPost]
-    public async Task<IActionResult> Create([FromBody] Domain.Entidades.Reserva reserva)
+        [HttpPost]
+        public async Task<IActionResult> Create([FromBody] Models.ReservaRequestDTO dto)
         {
-            if (reserva == null) return BadRequest();
+            if (dto == null) return BadRequest();
 
-            // El Id lo genera la base de datos (identity). Solo fijamos CreatedAt.
-            reserva.CreatedAt = DateTime.UtcNow;
+            // Validar que el evento exista
+            var evento = await _repo.GetEventoAsync(dto.IdEvento);
+            if (evento == null) return BadRequest("El evento indicado no existe.");
+
+            // Consideramos 'activo' si la fecha de inicio es en el futuro
+            if (evento.FechaInicio <= DateTime.UtcNow) return BadRequest("El evento no está activo.");
+
+            // Validar que el asiento exista y pertenezca al estadio del evento
+            var asiento = await _repo.GetAsientoAsync(dto.IdAsiento);
+            if (asiento == null) return BadRequest("El asiento indicado no existe.");
+            if (asiento.EstadioId != evento.EstadioId) return BadRequest("El asiento no pertenece al estadio del evento.");
+
+            // Validar disponibilidad (EstadoId == 1 => Disponible)
+            if (asiento.EstadoId != 1) return Conflict("El asiento no está disponible.");
+
+            // Crear reserva y marcar asiento como reservado
+            var reserva = new Domain.Entidades.Reserva
+            {
+                UsuarioId = dto.IdUsuario,
+                AsientoId = dto.IdAsiento,
+                EstadioId = dto.IdEstadio,
+                EstadoId = 2, // 'espera' por defecto
+                CreatedAt = DateTime.UtcNow
+            };
 
             var created = await _repo.CreateAsync(reserva);
+
+            // Intentar marcar el asiento como reservado
+            var locked = await _repo.TryReserveAsync(created.AsientoId, created.Id);
+            if (!locked)
+            {
+                // No se pudo reservar el asiento: revertir la reserva o devolver conflicto
+                return Conflict("No se pudo reservar el asiento (concurrencia).");
+            }
 
             return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
         }

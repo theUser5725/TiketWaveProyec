@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\repos\\TiketWaveProyec-main\\Reserva.Domain\\Reserva.Domain.csproj": {}
+    "c:\\repos\\TiketWaveProyec-main\\Reserva.Domain\\Reserva.Domain.csproj": {}
   },
   "projects": {
-    "C:\\repos\\TiketWaveProyec-main\\Reserva.Domain\\Reserva.Domain.csproj": {
+    "c:\\repos\\TiketWaveProyec-main\\Reserva.Domain\\Reserva.Domain.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\repos\\TiketWaveProyec-main\\Reserva.Domain\\Reserva.Domain.csproj",
+        "projectUniqueName": "c:\\repos\\TiketWaveProyec-main\\Reserva.Domain\\Reserva.Domain.csproj",
         "projectName": "Reserva.Domain",
-        "projectPath": "C:\\repos\\TiketWaveProyec-main\\Reserva.Domain\\Reserva.Domain.csproj",
+        "projectPath": "c:\\repos\\TiketWaveProyec-main\\Reserva.Domain\\Reserva.Domain.csproj",
         "packagesPath": "C:\\Users\\Alan Rosales\\.nuget\\packages\\",
-        "outputPath": "C:\\repos\\TiketWaveProyec-main\\Reserva.Domain\\obj\\",
+        "outputPath": "c:\\repos\\TiketWaveProyec-main\\Reserva.Domain\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\Alan Rosales\\AppData\\Roaming\\NuGet\\NuGet.Config",

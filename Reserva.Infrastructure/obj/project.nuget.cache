@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "xvTonKuJPZE=",
+  "dgSpecHash": "Zv9tZ0a2gN8=",
   "success": true,
-  "projectFilePath": "C:\\repos\\TiketWaveProyec-main\\Reserva.Infrastructure\\Reserva.Infrastructure.csproj",
+  "projectFilePath": "c:\\repos\\TiketWaveProyec-main\\Reserva.Infrastructure\\Reserva.Infrastructure.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Alan Rosales\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
     "C:\\Users\\Alan Rosales\\.nuget\\packages\\microsoft.bcl.asyncinterfaces\\7.0.0\\microsoft.bcl.asyncinterfaces.7.0.0.nupkg.sha512",

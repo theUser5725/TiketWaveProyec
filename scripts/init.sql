@@ -51,3 +51,13 @@ INSERT INTO "ReservaEstados" ("Nombre") VALUES
 -- Grant privileges to the application user (created by the container env)
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO tkwaver;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO tkwaver;
+
+-- Tabla de eventos
+CREATE TABLE IF NOT EXISTS evento (
+    idEvento SERIAL PRIMARY KEY,
+    nombre VARCHAR(255) NOT NULL,
+    fechaInicio TIMESTAMP WITH TIME ZONE NOT NULL,
+    idEstadio INTEGER NOT NULL REFERENCES "Estadios"("Id")
+);
+
+-- Nota: la tabla 'evento' se crea en minúsculas (sin comillas) para mantener compatibilidad con mappings EF.

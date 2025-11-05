@@ -20,6 +20,7 @@ namespace Reserva.Infrastructure.Persistencia
         public DbSet<Reserva.Domain.Entidades.Estadio> Estadios { get; set; } = null!;
         public DbSet<Reserva.Domain.Entidades.AsientoEstado> AsientoEstados { get; set; } = null!;
         public DbSet<Reserva.Domain.Entidades.ReservaEstado> ReservaEstados { get; set; } = null!;
+    public DbSet<Reserva.Domain.Entidades.Evento> Eventos { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -62,6 +63,15 @@ namespace Reserva.Infrastructure.Persistencia
                 b.Property(p => p.EstadioId).HasColumnName("idestadio");
                 b.Property(p => p.EstadoId).HasColumnName("estado");
                 b.Property(p => p.CreatedAt).HasColumnName("created_at");
+            });
+
+            modelBuilder.Entity<Reserva.Domain.Entidades.Evento>(b =>
+            {
+                b.ToTable("evento");
+                b.Property(p => p.Id).HasColumnName("idEvento");
+                b.Property(p => p.Nombre).HasColumnName("nombre");
+                b.Property(p => p.FechaInicio).HasColumnName("fechaInicio");
+                b.Property(p => p.EstadioId).HasColumnName("idEstadio");
             });
 
             modelBuilder.Entity<Reserva.Domain.Entidades.Usuario>(b =>
