@@ -71,5 +71,16 @@ namespace Reserva.API.Controllers
             if (r == null) return NotFound();
             return Ok(r);
         }
+
+        /// <summary>
+        /// Cancela una reserva: actualiza estado y libera asiento.
+        /// </summary>
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Cancel(int id)
+        {
+            var ok = await _repo.CancelAsync(id);
+            if (!ok) return NotFound();
+            return NoContent();
+        }
     }
 }

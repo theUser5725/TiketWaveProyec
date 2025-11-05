@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "qC2N0w/e+VU=",
+  "dgSpecHash": "yF8bfOh31dc=",
   "success": true,
-  "projectFilePath": "c:\\repos\\TiketWaveProyec-main\\Reserva.API\\Reserva.API.csproj",
+  "projectFilePath": "C:\\repos\\TiketWaveProyec-main\\Reserva.API\\Reserva.API.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Alan Rosales\\.nuget\\packages\\aspnetcore.healthchecks.npgsql\\9.0.0\\aspnetcore.healthchecks.npgsql.9.0.0.nupkg.sha512",
     "C:\\Users\\Alan Rosales\\.nuget\\packages\\aspnetcore.healthchecks.redis\\9.0.0\\aspnetcore.healthchecks.redis.9.0.0.nupkg.sha512",

@@ -21,6 +21,7 @@ namespace Reserva.Infrastructure.Persistencia
         public DbSet<Reserva.Domain.Entidades.AsientoEstado> AsientoEstados { get; set; } = null!;
         public DbSet<Reserva.Domain.Entidades.ReservaEstado> ReservaEstados { get; set; } = null!;
     public DbSet<Reserva.Domain.Entidades.Evento> Eventos { get; set; } = null!;
+    public DbSet<Reserva.Domain.Entidades.Notificacion> Notificaciones { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -112,6 +113,17 @@ namespace Reserva.Infrastructure.Persistencia
                 new Reserva.Domain.Entidades.ReservaEstado { Id = 2, Nombre = "espera" },
                 new Reserva.Domain.Entidades.ReservaEstado { Id = 3, Nombre = "cancelada" }
             );
+
+            modelBuilder.Entity<Reserva.Domain.Entidades.Notificacion>(b =>
+            {
+                b.ToTable("notificacion");
+                b.Property(p => p.Id).HasColumnName("idNotificacion");
+                b.Property(p => p.ReservaId).HasColumnName("idReserva");
+                b.Property(p => p.UsuarioId).HasColumnName("idUsuario");
+                b.Property(p => p.Tipo).HasColumnName("tipo");
+                b.Property(p => p.Mensaje).HasColumnName("mensaje");
+                b.Property(p => p.CreatedAt).HasColumnName("created_at");
+            });
         }
     }
 }

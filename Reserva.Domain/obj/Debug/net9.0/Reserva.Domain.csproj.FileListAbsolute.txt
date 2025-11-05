@@ -9,3 +9,4 @@ c:\repos\TiketWaveProyec-main\Reserva.Domain\obj\Debug\net9.0\Reserva.Domain.dll
 c:\repos\TiketWaveProyec-main\Reserva.Domain\obj\Debug\net9.0\refint\Reserva.Domain.dll
 c:\repos\TiketWaveProyec-main\Reserva.Domain\obj\Debug\net9.0\Reserva.Domain.pdb
 c:\repos\TiketWaveProyec-main\Reserva.Domain\obj\Debug\net9.0\ref\Reserva.Domain.dll
+C:\repos\TiketWaveProyec-main\Reserva.Domain\obj\Debug\net9.0\Reserva.Domain.sourcelink.json

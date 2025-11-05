@@ -1,399 +1,300 @@
 # TiketWave - Documentación técnica
 
+
+Este documento resume la arquitectura, componentes y flujos del microservicio de reservas. Está pensado para
+desarrolladores y operadores que necesiten entender cómo funciona el sistema, cómo ejecutarlo localmente y cómo
+probar los flujos principales.
+
 ## Índice
 
-1. Visión general
+1. Visión general del sistema
 2. Estructura del repositorio
-3. Descripción detallada por componente
-	- `Reserva.API`
-	- `Reserva.Domain`
-	- `Reserva.Infrastructure`
-4. Flujo completo: desde petición hasta persistencia
-	- Secuencia paso a paso
-	- Diagramas de alto nivel
-5. Estructura de datos
-	- Entidades C# (ejemplos)
-	- Esquema SQL sugerido
-6. Consideraciones operativas
-7. Próximos pasos
+3. Tecnologías y stack
+4. Componentes del sistema
+	 - 4.1 Reserva.API
+	 - 4.2 Reserva.Domain
+	 - 4.3 Reserva.Infrastructure
+5. Esquema de base de datos completo (SQL)
+6. Entidades del dominio (mapa tabla → C#)
+7. Flujos principales
+	 - 7.1 Creación de reserva
+	 - 7.2 Cancelación de reserva
+	 - 7.3 Sistema de notificaciones
+8. Componentes avanzados implementados
+9. Endpoints de la API
+10. Configuración y despliegue (Docker)
+11. Guías de uso (ejecución local y pruebas)
+12. Consideraciones operativas
 
-## 1. Visión general
+---
 
-Este documento describe cómo funciona cada parte del microservicio de reservas, cómo se orquesta una reserva desde que llega una petición HTTP hasta que queda persistida en la base de datos, y la estructura de los datos. Está pensado para desarrolladores e ingenieros de plataforma que deban operar o extender el servicio.
+## 1. Visión general del sistema
+
+Objetivo: ofrecer un microservicio que gestione la reserva de asientos para eventos con garantías de
+consistencia bajo concurrencia, notificaciones y un API HTTP sencillo.
+
+Principios:
+- Consistencia transaccional al reservar asientos (bloqueos DB + control optimista con RowVersion).
+- Separación de responsabilidades: API, dominio puro y adaptadores/infra.
+- Extensible para notificaciones y almacenamiento en cache.
 
 ## 2. Estructura del repositorio
 
-Raíz del proyecto (resumen):
+Proyectos principales:
+- `Reserva.API/` — capa WebApi (Controllers, DI, Program.cs)
+- `Reserva.Domain/` — entidades, interfaces y patrones (State, Observer)
+- `Reserva.Infrastructure/` — implementación concreta: EF Core, repositorios, servicios (Redis, Notification)
 
-```
-TiketWave/
-├── Reserva.API/                 # Capa Web API (Controllers, Middleware, Extensions, Program.cs)
-├── Reserva.Domain/              # Lógica de negocio: entidades, interfaces y patrones (State/Observer)
-└── Reserva.Infrastructure/      # Implementaciones: EF Core, repositorios (DAO), servicios externos (Redis, RedLock)
-```
+Archivos y carpetas relevantes:
+- `scripts/init.sql` — script de inicialización de la BD (seed).
+- `docker-compose.yml` — compose para Postgres y Redis.
+- `docs/` — documentación adicional (migraciones, notas).
 
-## 5.3 Esquema de la base de datos (SQL proporcionado por el cliente)
+Dependencias entre proyectos:
+- `Reserva.API` referencia `Reserva.Infrastructure` y `Reserva.Domain`.
+- `Reserva.Infrastructure` referencia `Reserva.Domain`.
 
-La siguiente es la querry exactamente como se entregó. El proyecto fue adaptado
-para mapear estas tablas mediante entidades en `Reserva.Domain/Entidades`.
+## 3. Tecnologías y stack
 
-```sql
-	nombre VARCHAR(50) NOT NULL UNIQUE
-);
-GO
+- .NET 9 (C#)
+- EF Core con Npgsql (PostgreSQL)
+- PostgreSQL 15 (desarrollo vía Docker)
+- Redis (cache y posible lock distribuido)
+- Patterns: Repository/DAO, Observer, (Singleton para secciones críticas in-process)
 
--- Tabla para estados de reservas
+## 4. Componentes del sistema
 
--- Tabla de usuarios
-CREATE TABLE usuario (
-	idUsuario INT PRIMARY KEY IDENTITY(1,1),
-	nombre VARCHAR(100) NOT NULL,
-	apellido VARCHAR(100) NOT NULL
-);
-GO
+4.1 Reserva.API (Capa Web)
+- Controllers: exponen endpoints REST (ej. `ReservaController`) para crear, consultar y cancelar reservas.
+- Extensions/DI: `AddReservaServices` registra DbContext, repositorios, cache y servicios singleton (ReservationSingleton, NotificationService).
+- Middleware: validaciones transversales y trazabilidad.
 
--- Tabla de estadios
-CREATE TABLE estadio (
-	idEstadio INT PRIMARY KEY IDENTITY(1,1),
-	cantidad_asientos INT NOT NULL
-);
-GO
+4.2 Reserva.Domain (Lógica de negocio)
+- Entidades: `Reserva`, `Asiento`, `Usuario`, `Estadio`, `ReservaEstado`, `AsientoEstado`, `Evento`, `Notificacion`.
+- Interfaces: `IReservaRepository`, `ICacheService`, `INotificationService`, `IReservaSingletonService`.
+- Patrones: State (para estados de reserva), Observer (eventos de reserva como `ReservaCreada`, `ReservaCancelada`).
 
--- Tabla de asientos (CORREGIDA: ahora incluye idEstadio)
-CREATE TABLE asiento (
-	idAsiento INT PRIMARY KEY IDENTITY(1,1),
-	idEstadio INT NOT NULL,
-	FOREIGN KEY (estado) REFERENCES asientoEstado(idEstadoAsiento),
-	FOREIGN KEY (idEstadio) REFERENCES estadio(idEstadio)
-);
-GO
+4.3 Reserva.Infrastructure (Implementación)
+- `ContextoReserva` — DbContext configurado con mappings y shadow properties `RowVersion`.
+- `ReservaRepository` — implementación con transacciones y locking (SELECT ... FOR UPDATE para PostgreSQL).
+- `RedisCacheService` — servicio de cache (placeholder).
+- `NotificationService` — cola en memoria + worker que persiste notificaciones en BD (usa `IDbContextFactory`).
+- `ReservaSingletonService` — singleton que serializa secciones críticas con `SemaphoreSlim` (in-process).
 
--- Tabla de reservas
-CREATE TABLE reserva (
-	idReserva INT PRIMARY KEY IDENTITY(1,1),
-	idasiento INT NOT NULL,
-	idestadio INT NOT NULL,
-	estado INT NOT NULL,
-	FOREIGN KEY (idUsuario) REFERENCES usuario(idUsuario),
-	FOREIGN KEY (idasiento) REFERENCES asiento(idAsiento),
-GO
+## 5. Esquema de base de datos completo (SQL)
 
--- Insertar datos básicos
-INSERT INTO asientoEstado (nombre) VALUES 
-('Disponible'),
-('No Disponible');
-GO
+El siguiente script contiene las tablas principales usadas por la aplicación. Está pensado para ejecutarse
+en PostgreSQL (sintaxis compatible con Docker init script). Si usas SQL Server, algunos DDL y los hints de locking cambian.
 
-INSERT INTO reservaEstado (nombre) VALUES 
-('aprobado'),
-('espera'),
-('cancelada');
-GO
-```
-
-### Mapeo tablas -> entidades (archivos creados)
-
-- `AsientoEstado.cs` -> tabla `asientoEstado` (Id, Nombre)
-- `ReservaEstado.cs` -> tabla `reservaEstado` (Id, Nombre)
-- `Usuario.cs` -> tabla `usuario` (Id, Nombre, Apellido)
-- `Estadio.cs` -> tabla `estadio` (Id, CantidadAsientos, Asientos[] - navegación opcional)
-- `Asiento.cs` -> tabla `asiento` (Id / IdAsiento alias, EstadoId, EstadoEntity, EstadioId, Disponible)
-- `Reserva.cs` -> tabla `reserva` (Id / IdReserva alias, UsuarioId, AsientoId, EstadioId, EstadoId, EstadoEntity, Estado (legacy flexible), CreatedAt)
-
-> Nota: Para evitar romper llamadas existentes, las entidades incluyen propiedades "legacy/alias"
-> como `IdAsiento`, `IdReserva`, `Disponible` y una propiedad flexible `Reserva.Estado` que acepta
-> valores legacy en texto o en número. Es recomendable migrar el código para usar `EstadoId` y
-> `EstadoEntity` (navegación) en el dominio nuevo.
-
-## 3. Descripción detallada por componente
-
-3.1 `Reserva.API` — capa HTTP / orquestación
-
-- Program.cs: configura pipeline, logging (Serilog), Swagger y registra servicios mediante `AddReservaServices`.
-- Controllers (por ejemplo `ReservaController`): reciben DTOs HTTP, validan entrada mínima y llaman a `IReservaRepository` para crear/consultar reservas.
-- Middleware (`ProxyValidationMiddleware`): responsable de checks transversales (headers, rate limit, cabeceras de tracing) y puede prevenir peticiones antes del handler.
-- Extensions (`DependencyInjection.cs`): registra `DbContext`, `IReservaRepository`, `ICacheService` y otras dependencias (MediatR, Polly, health checks).
-
-3.2 `Reserva.Domain` — reglas de negocio y modelos puros
-
-- Entidades: `Reserva`, `Asiento` (modelo del dominio con propiedades y tokens de concurrencia).
-- Patrones: State (gestiona transiciones de estado de una reserva), Observer (eventos de dominio como `ReservaCreada` o `ReservaExpirada`).
-- Interfaces: `IReservaRepository` (contrato para persistencia), `ICacheService` (caching), `INotificationService` (si aplica).
-
-3.3 `Reserva.Infrastructure` — implementación y recursos externos
-
-- `ContextoReserva` (DbContext): define `DbSet<Reserva>` y `DbSet<Asiento>` y configura tokens de concurrencia (RowVersion) y `UseIdentityColumn()` para PK ints.
-- `ReservaRepository`: implementación del DAO. Aquí se deben aplicar transacciones, locking distribuido (RedLock) o estrategias `SELECT FOR UPDATE` para evitar oversell.
-- `RedisCacheService` (placeholder): almacenamiento en cache para lecturas frecuentes.
-
-## 4. Flujo completo: desde petición hasta persistencia
-
-Resumen: el flujo sigue este esquema: cliente -> API -> middleware -> repositorio -> BD -> cache -> notificaciones.
-
-4.1 Secuencia paso a paso (creación de reserva)
-
-1. Cliente envía POST /api/reservas con payload: { eventId, userId, cantidad }
-2. `ProxyValidationMiddleware` valida cabeceras y seguridad básica. Si falla, se devuelve error 4xx.
-3. `ReservaController.Create` valida payload y construye una instancia `Reserva` (sin asignar Id: la BD se encargará).
-4. El controller llama a `IReservaRepository.CreateAsync(reserva)`.
-5. En `ReservaRepository.TryReserveAsync` o la lógica de reserva:
-	- Intentar adquirir lock distribuido (RedLock) para el `asientoId`.
-	- Dentro del lock: verificar disponibilidad leyendo `Asientos` con `SELECT ... FOR UPDATE` o mediante EF Core en una transacción.
-	- Si hay disponibilidad: marcar `Asiento.Disponible = false` y crear `Reserva` (Add + SaveChanges).
-	- Si no hay disponibilidad: devolver false / error y liberar lock.
-6. `SaveChanges` envía la inserción a PostgreSQL; la columna `id` (int identity) será asignada por la BD.
-7. Una vez confirmado el commit, el repositorio actualiza el cache Redis (Set reserva por id) y publica un evento `ReservaCreada` al bus/internamente (observer).
-8. El controller devuelve 201 Created con la reserva creada (incluyendo `id`), o el error apropiado.
-
-4.2 Diagrama simplificado (secuencia)
-
-Cliente -> API (Controller) -> Middleware -> Repositorio -> BD
-													  -> Cache
-													  -> Observer/Event bus
-
-## 5. Estructura de datos
-
-5.1 Entidades en C# (ejemplos simplificados)
-
-Reserva.cs
-
-```csharp
-public class Reserva
-{
-	 public int Id { get; set; }                // PK: identity generado por BD
-	 public int AsientoId { get; set; }         // FK a Asiento.Id
-	 public DateTime CreatedAt { get; set; }
-	 public string Estado { get; set; } = "Temporal";
-	 public byte[]? RowVersion { get; set; }    // Concurrency token
-}
-```
-
-Asiento.cs
-
-```csharp
-public class Asiento
-{
-	 public int Id { get; set; }                // PK: identity generado por BD
-	 public string Codigo { get; set; }
-	 public bool Disponible { get; set; } = true;
-	 public byte[]? RowVersion { get; set; }
-}
-```
-
-5.2 Esquema SQL sugerido (PostgreSQL)
+-- SQL BEGIN
 
 ```sql
-CREATE TABLE asientos (
-  id serial PRIMARY KEY,
-  codigo text NOT NULL,
-  disponible boolean NOT NULL DEFAULT true,
-  row_version bytea
+-- asientoEstado
+CREATE TABLE IF NOT EXISTS asientoEstado (
+	idEstadoAsiento serial PRIMARY KEY,
+	nombre varchar(50) NOT NULL UNIQUE
 );
 
-CREATE TABLE reservas (
-  id serial PRIMARY KEY,
-  asiento_id integer NOT NULL REFERENCES asientos(id),
-  created_at timestamptz NOT NULL DEFAULT now(),
-  estado text NOT NULL DEFAULT 'Temporal',
-  row_version bytea
+-- reservaEstado
+CREATE TABLE IF NOT EXISTS reservaEstado (
+	idEstadoReserva serial PRIMARY KEY,
+	nombre varchar(50) NOT NULL UNIQUE
 );
+
+-- usuario
+CREATE TABLE IF NOT EXISTS usuario (
+	idUsuario serial PRIMARY KEY,
+	nombre varchar(100) NOT NULL,
+	apellido varchar(100) NOT NULL
+);
+
+-- estadio
+CREATE TABLE IF NOT EXISTS estadio (
+	idEstadio serial PRIMARY KEY,
+	cantidad_asientos int NOT NULL
+);
+
+-- asiento
+CREATE TABLE IF NOT EXISTS asiento (
+	idAsiento serial PRIMARY KEY,
+	estado int NOT NULL,
+	idEstadio int NOT NULL REFERENCES estadio(idEstadio),
+	row_version bytea
+);
+
+-- reserva
+CREATE TABLE IF NOT EXISTS reserva (
+	idReserva serial PRIMARY KEY,
+	idUsuario int NOT NULL REFERENCES usuario(idUsuario),
+	idasiento int NOT NULL REFERENCES asiento(idAsiento),
+	idestadio int NOT NULL REFERENCES estadio(idEstadio),
+	estado int NOT NULL REFERENCES reservaEstado(idEstadoReserva),
+	created_at timestamptz NOT NULL DEFAULT now(),
+	row_version bytea
+);
+
+-- evento
+CREATE TABLE IF NOT EXISTS evento (
+	idEvento serial PRIMARY KEY,
+	nombre varchar(200) NOT NULL,
+	fechaInicio timestamptz NOT NULL,
+	idEstadio int NOT NULL REFERENCES estadio(idEstadio)
+);
+
+-- notificacion
+CREATE TABLE IF NOT EXISTS notificacion (
+	idNotificacion serial PRIMARY KEY,
+	idReserva int NOT NULL,
+	idUsuario int NULL,
+	tipo varchar(100) NOT NULL,
+	mensaje text NOT NULL,
+	created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Seed básico
+INSERT INTO asientoEstado (nombre) VALUES ('Disponible') ON CONFLICT DO NOTHING;
+INSERT INTO asientoEstado (nombre) VALUES ('No Disponible') ON CONFLICT DO NOTHING;
+
+INSERT INTO reservaEstado (nombre) VALUES ('aprobado') ON CONFLICT DO NOTHING;
+INSERT INTO reservaEstado (nombre) VALUES ('espera') ON CONFLICT DO NOTHING;
+INSERT INTO reservaEstado (nombre) VALUES ('cancelada') ON CONFLICT DO NOTHING;
+
+-- SQL END
 ```
 
-## 6. Consideraciones operativas
+> Nota: `row_version` se usa para concurrencia optimista (tipo `bytea`) y es gestionado por EF Core como shadow property.
 
-- Backups: antes de modificaciones estructurales (migraciones de PK), ejecutar `pg_dump` o snapshot.
-- Migraciones: para cambiar tipos de PK (uuid -> int) usar estrategia segura (añadir columna int, poblarla, swap en ventana de mantenimiento). Ver `docs/migration-uuid-to-int.md`.
-- Concurrencia: favor usar locking (RedLock o SELECT FOR UPDATE) y `RowVersion` para detectar conflictos.
+## 6. Entidades del dominio (mapeo tabla → C#)
 
-## 7. Próximos pasos
+- `Asiento` → `Reserva.Domain.Entidades.Asiento`
+	- Id (idAsiento), EstadoId (estado), EstadioId (idEstadio), RowVersion (shadow)
 
-- Crear tests de integración que levanten Postgres y Redis (docker-compose) y prueben altas concurrencias en el endpoint de creación.
-- Añadir migraciones EF Core que reflejen los cambios en el modelo (ya se agregó `UseIdentityColumn()` en `ContextoReserva`).
-- Establecer un pipeline CI que ejecute migraciones en un entorno de staging y corra tests de contrato.
+- `Reserva` → `Reserva.Domain.Entidades.Reserva`
+	- Id (idReserva), UsuarioId (idUsuario), AsientoId (idasiento), EstadioId (idestadio), EstadoId (estado), CreatedAt, RowVersion
 
----
+- `Evento` → `Reserva.Domain.Entidades.Evento`
+- `Notificacion` → `Reserva.Domain.Entidades.Notificacion`
+- `Usuario`, `Estadio`, `AsientoEstado`, `ReservaEstado` también mapeadas en `ContextoReserva`.
 
-Si quieres, agrego:
-- Un Postman collection con ejemplos concretos.
-- Una migración EF Core de ejemplo que introduce las columnas identity y el swap (esto requiere revisión antes de aplicar en producción).
+Ejemplo (simplificado) — creación de una Reserva desde el controller:
 
-## Run local (Docker)
+```csharp
+var reserva = new Reserva { UsuarioId = dto.IdUsuario, AsientoId = dto.IdAsiento, EstadioId = dto.IdEstadio, EstadoId = 2, CreatedAt = DateTime.UtcNow };
+await _repo.CreateAsync(reserva);
+// luego TryReserveAsync intenta bloquear y marcar asiento
+```
 
-He añadido un archivo `docker-compose.yml` y `scripts/init.sql` que crean un contenedor Postgres con las tablas iniciales y Redis.
+## 7. Flujos principales
 
-Para levantar los servicios:
+7.1 Creación de reserva
+- Paso 1: El cliente POST /api/reserva con DTO (IdEvento, IdUsuario, IdAsiento, IdEstadio).
+- Paso 2: El controller valida evento, existencia de asiento y pertenencia al estadio.
+- Paso 3: Se crea la entidad `Reserva` (estado 'espera') y se persiste.
+- Paso 4: `TryReserveAsync` se ejecuta dentro de `ReservaSingletonService` (serializa en proceso) y:
+	- inicia una transacción EF Core
+	- ejecuta `SELECT ... FOR UPDATE` sobre la fila de `asiento` para bloquearla (Postgres)
+	- valida `EstadoId == 1` (Disponible) y `EstadioId` coincidente
+	- actualiza `asiento.EstadoId = 2` (No Disponible), `SaveChanges()` y `Commit`
+	- encola evento `ReservaCreada` en `NotificationService`
+
+7.2 Cancelación de reserva
+- Endpoint: DELETE /api/reserva/{id}
+- `ReservaRepository.CancelAsync` hace:
+	- serializar en el singleton
+	- iniciar transacción
+	- marcar `reserva.EstadoId = 3` (cancelada)
+	- marcar `asiento.EstadoId = 1` (Disponible)
+	- `SaveChanges()` y `Commit`
+	- encolar `ReservaCancelada` en `NotificationService`
+
+7.3 Sistema de notificaciones
+- `NotificationService` recibe eventos (implementa `INotificationService.EnqueueAsync`) y los añade a una cola en memoria.
+- Worker en background consume la cola y persiste filas en `notificacion` usando `IDbContextFactory<ContextoReserva>`.
+
+## 8. Componentes avanzados implementados
+
+8.1 Sistema de Notificaciones
+- Entidad `Notificacion` + `NotificationService` (cola + worker) que guarda eventos en BD.
+
+8.2 Control de Concurrencia
+- `ReservaSingletonService` (in-process) para serializar secciones críticas.
+- `SELECT ... FOR UPDATE` en `TryReserveAsync` para bloqueo a nivel DB (Postgres).
+- Shadow properties `RowVersion` para concurrencia optimista.
+
+8.3 Patrón Observer / Eventos
+- Eventos definidos: `ReservaCreadaEvent`, `ReservaCanceladaEvent`, `ReservaExpiradaEvent`.
+- El repositorio publica eventos al `INotificationService` cuando ocurren acciones relevantes.
+
+8.4 Validaciones y Seguridad
+- Validaciones de entrada en controllers (DTOs), verificación de pertenencia de asiento al estadio, y comprobación de disponibilidad.
+
+## 9. Endpoints de la API
+
+- POST /api/reserva
+	- Crea una reserva (payload JSON: IdEvento, IdUsuario, IdAsiento, IdEstadio)
+	- Respuestas: 201 Created (reserva), 400 BadRequest (datos/validaciones), 409 Conflict (concurrencia)
+
+- GET /api/reserva/{id}
+	- Devuelve la reserva por id (200 OK o 404 NotFound)
+
+- DELETE /api/reserva/{id}
+	- Cancela la reserva (204 No Content o 404 NotFound)
+
+Ejemplo rápido (PowerShell):
 
 ```powershell
-docker-compose up -d
+Invoke-RestMethod -Method Post -Uri "http://localhost:5000/api/reserva" -Body (@{ IdEvento=1; IdUsuario=1; IdAsiento=10; IdEstadio=1 } | ConvertTo-Json) -ContentType 'application/json'
+
+Invoke-RestMethod -Method Delete -Uri "http://localhost:5000/api/reserva/123" -UseBasicParsing
 ```
 
-Postgres escuchará en el puerto 5432 y Redis en 6379. El script `scripts/init.sql` crea las tablas y los datos
-iniciales (asientoEstado y reservaEstado).
+## 10. Configuración y despliegue
 
-Si quieres puedo además añadir una migración EF Core y un pequeño proyecto de pruebas de integración que valide
-la conexión y los mapeos.
+10.1 Docker y contenedores
+- `docker-compose.yml` levanta:
+	- Postgres (`tiketwave-db`) con `scripts/init.sql` montado para seed
+	- Redis (cache)
 
-## Docker: configuración concreta usada aquí (credenciales y propósito)
-
-Se ha preparado un entorno Docker local para desarrollo y pruebas. Propósito: proporcionar una base reproducible
-de PostgreSQL (con datos seed) y Redis para cache/local testing sin depender de servicios externos.
-
-- Contenedor Postgres:
-	- Imagen: `postgres:15`
-	- Nombre del contenedor (en compose): `tiketwave-db`
-	- Volumen de datos: `postgres_data` (persistencia local)
-	- Script de inicialización montado: `./scripts/init.sql` -> `/docker-entrypoint-initdb.d/init.sql`
-
-- Credenciales (tal como están guardadas en este repositorio):
+10.2 Variables de entorno
+- Las credenciales están en `docker-compose.yml` y `appsettings.Development.json` (uso local):
 	- Usuario: `tkwaver`
-	- Contraseña: `tkwpsw987`
-	- Base de datos: `tkwaver_db`
+	- Password: `tkwpsw987`
+	- DB: `tkwaver_db`
 
-> Nota: las credenciales están registradas en `docker-compose.yml` y en `Reserva.API/appsettings.Development.json` para
-> facilitar el arranque local. Si prefieres, puedo moverlas a un archivo `.env` y actualizar `docker-compose.yml` para
-> que las lea desde allí (recomendado desde el punto de vista de seguridad operativa).
+10.3 Configuración de desarrollo
+- Ejecutar: `docker-compose up -d`
+- Compilar solución: `dotnet build Reserva.sln`
+- Ejecutar API: `dotnet run --project Reserva.API/Reserva.API.csproj`
 
-## Qué se hizo en los ficheros relevantes
+## 11. Guías de uso
 
-- `docker-compose.yml`:
-	- Definido servicio `postgres` con las variables `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` apuntando a
-		`tkwaver` / `tkwpsw987` / `tkwaver_db`.
-	- Montado `./scripts/init.sql` para ejecutar la inicialización de esquema y datos cuando el volumen es nuevo.
+11.1 Ejecución local
+1. Levanta servicios: `docker-compose up -d`
+2. Compila: `dotnet build Reserva.sln`
+3. Ejecuta la API: `dotnet run --project Reserva.API/Reserva.API.csproj`
 
-- `scripts/init.sql`:
-	- Crea las tablas base (`AsientoEstados`, `ReservaEstados`, `Usuarios`, `Estadios`, `Asientos`, `Reservas`).
-	- Inserta valores seed para estados de asiento y reserva.
-	- Otorga privilegios sobre tablas y secuencias al usuario `tkwaver` (GRANT ... TO tkwaver).
+11.2 Testing de endpoints
+- Usa Postman, curl o `Invoke-RestMethod` para probar POST/GET/DELETE descritos en la sección 9.
 
-- `Reserva.API/appsettings.Development.json`:
-		- Cadena de conexión de desarrollo actualizada para apuntar a `Host=localhost;Port=5432;Database=tkwaver_db;Username=tkwaver;Password=tkwpsw987`.
+11.3 Monitoreo y Logs
+- La API utiliza Serilog (configurable en `appsettings.json`). Recomendable redirigir logs a archivo o sink compatible con ELK/Seq.
 
-- `scripts/recreate-db.ps1` (nuevo):
-	- Helper PowerShell que hace `docker-compose down -v` (borra volumen), `docker-compose up -d`, espera a que Postgres
-		esté listo y lista las tablas en `tkwaver_db` usando el usuario `tkwaver`.
+## 12. Consideraciones de operación
 
-## Logs de Postgres — interpretación rápida
-
-Cuando arranques el contenedor verás líneas como:
-
-```
-PostgreSQL init process complete; ready for start up.
-LOG: starting PostgreSQL ...
-LOG: listening on IPv4 address "0.0.0.0", port 5432
-LOG: database system is ready to accept connections
-```
-
-- "init process complete" significa que `initdb` y los scripts en `/docker-entrypoint-initdb.d` se ejecutaron
-	correctamente (esto sólo ocurre la primera vez que el volumen es creado).
-- "listening on ..." y "ready to accept connections" significan que el servidor está arrancado y aceptando conexiones
-	por TCP (puerto 5432) y/o socket Unix.
-
-Si ves errores de tipo `role "reserva" does not exist` al ejecutar `init.sql`, es porque el script intentaba dar
-permisos a un role que no se había creado; por eso actualizamos `init.sql` para otorgar permisos al role `tkwaver`.
-
-## Comandos clave (PowerShell / Windows)
-
-- Levantar todos los servicios (en background):
-```powershell
-docker-compose up -d
-```
-
-- Parar y eliminar contenedores (sin borrar volumenes):
-```powershell
-docker-compose down
-```
-
-- Parar y **eliminar volúmenes** (esto borra los datos y fuerza re-ejecución de `init.sql`):
-```powershell
-docker-compose down -v
-```
-
-- Ver estado de servicios:
-```powershell
-docker-compose ps
-```
-
-- Ver logs del contenedor Postgres (últimos 200 líneas):
-```powershell
-docker logs tiketwave-db --tail 200
-```
-
-- Ejecutar un comando psql dentro del contenedor (usando TCP loopback para evitar problemas de socket):
-```powershell
-docker exec -e PGPASSWORD=tkwpsw987 tiketwave-db psql -h 127.0.0.1 -U tkwaver -d tkwaver_db -c '\dt'
-```
-
-- Conectarte desde tu máquina si tienes `psql` instalado (host local):
-```powershell
-psql "host=localhost port=5432 dbname=tkwaver_db user=tkwaver password=tkwpsw987"
-```
-
-- Si no quieres borrar el volumen pero necesitas crear/actualizar el usuario y la DB en un servidor ya existente, usa
-	estos comandos (ejecutarlos con un superuser o dentro del contenedor `tiketwave-db` como `postgres`):
-
-```sql
--- Conectar como superuser dentro del contenedor:
--- docker exec -it tiketwave-db psql -U postgres
-
--- Crear role si no existe y asignar contraseña
-DO $$ BEGIN
-	 IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'tkwaver') THEN
-			CREATE ROLE tkwaver WITH LOGIN PASSWORD 'tkwpsw987';
-	 END IF;
-END $$;
-
--- Crear base si no existe y asignar propietario
-DO $$ BEGIN
-	 IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'tkwaver_db') THEN
-			 CREATE DATABASE tkwaver_db OWNER tkwaver;
-	 END IF;
-END $$;
-
--- Dar permisos sobre tablas y secuencias (ejecutar dentro de la BD objetivo)
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO tkwaver;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO tkwaver;
-```
-
-## Backups / restores
-
-- Para volcar la base desde el host (requiere `pg_dump`):
-```powershell
-docker exec -e PGPASSWORD=tkwpsw987 tiketwave-db pg_dump -U tkwaver -d tkwaver_db -F c -f /tmp/tkwaver_db.dump
-docker cp tiketwave-db:/tmp/tkwaver_db.dump .\tkwaver_db.dump
-```
-
-- Para restaurar un backup (restaura en una BD vacía o nueva):
-```powershell
-docker cp .\tkwaver_db.dump tiketwave-db:/tmp/tkwaver_db.dump
-docker exec -e PGPASSWORD=tkwpsw987 tiketwave-db pg_restore -U tkwaver -d tkwaver_db /tmp/tkwaver_db.dump
-```
-
-## Migraciones EF Core (opcional)
-
-- Propósito: versionar cambios de esquema desde el modelo C# y aplicarlos automáticamente con `dotnet ef database update`.
-- Generar migración (desde la raíz del repo):
-```powershell
-dotnet ef migrations add NombreDeLaMigracion --project "Reserva.Infrastructure/Reserva.Infrastructure.csproj" --startup-project "Reserva.API/Reserva.API.csproj" -o Migrations
-```
-
-- Aplicar migraciones a la BD:
-```powershell
-dotnet ef database update --project "Reserva.Infrastructure/Reserva.Infrastructure.csproj" --startup-project "Reserva.API/Reserva.API.csproj"
-```
-
-> Nota: las migraciones funcionan mejor si las versiones de los paquetes `Microsoft.EntityFrameworkCore.*` están alineadas
-> entre proyectos. En este repositorio se han generado migraciones en `Reserva.Infrastructure/Migrations` durante la
-> puesta a punto, pero puedes usar `scripts/init.sql` para inicialización rápida en desarrollo.
-
-## Recomendaciones finales
-
-- Para desarrollo local: puedes usar `scripts/recreate-db.ps1` para borrar el volumen y volver a crear la BD con los datos
-	seed automáticamente.
-- Para entornos compartidos o producción: no guardes contraseñas en el repo; usa un `.env` o un gestor de secretos.
-- Si te interesa que añada pgAdmin al `docker-compose.yml` o que mueva las credenciales a `.env`, dime y lo implemento.
+- Backups: `pg_dump` y restore con `pg_restore` (ejemplos en docs y arriba en scripts).
+- Migraciones: preferir EF Core migrations para evolución, o actualizar `scripts/init.sql` en entornos de desarrollo.
+- Performance y escalabilidad:
+	- Para escalado horizontal, sustituir `ReservaSingletonService` por un lock distribuido (Redis+RedLock) o confiar en bloqueos DB robustos.
+	- La cola de notificaciones en memoria debe reemplazarse por Redis/RabbitMQ en producción.
 
 ---
 
-Si quieres que incorpore esto como una sección más visible en la wiki del proyecto o en un fichero separado
-(`docs/docker-setup.md`), lo replico allí y dejo `README.md` más conciso.
+Si quieres, puedo:
+- Añadir el script SQL completo en `scripts/init.sql` (actualizarlo para incluir `notificacion` y `row_version`).
+- Generar una migración EF Core y aplicarla.
+- Crear una colección Postman y tests de integración que levanten docker-compose.
+
+Dime qué prefieres y lo implemento.
+```
+
 

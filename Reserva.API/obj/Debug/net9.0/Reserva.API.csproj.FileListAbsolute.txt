@@ -176,3 +176,4 @@ c:\repos\TiketWaveProyec-main\Reserva.API\obj\Debug\net9.0\refint\Reserva.API.dl
 c:\repos\TiketWaveProyec-main\Reserva.API\obj\Debug\net9.0\Reserva.API.pdb
 c:\repos\TiketWaveProyec-main\Reserva.API\obj\Debug\net9.0\Reserva.API.genruntimeconfig.cache
 c:\repos\TiketWaveProyec-main\Reserva.API\obj\Debug\net9.0\ref\Reserva.API.dll
+C:\repos\TiketWaveProyec-main\Reserva.API\obj\Debug\net9.0\Reserva.API.sourcelink.json
