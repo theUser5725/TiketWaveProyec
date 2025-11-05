@@ -276,25 +276,6 @@ Invoke-RestMethod -Method Delete -Uri "http://localhost:5000/api/reserva/123" -U
 11.2 Testing de endpoints
 - Usa Postman, curl o `Invoke-RestMethod` para probar POST/GET/DELETE descritos en la sección 9.
 
-11.3 Monitoreo y Logs
-- La API utiliza Serilog (configurable en `appsettings.json`). Recomendable redirigir logs a archivo o sink compatible con ELK/Seq.
 
-## 12. Consideraciones de operación
-
-- Backups: `pg_dump` y restore con `pg_restore` (ejemplos en docs y arriba en scripts).
-- Migraciones: preferir EF Core migrations para evolución, o actualizar `scripts/init.sql` en entornos de desarrollo.
-- Performance y escalabilidad:
-	- Para escalado horizontal, sustituir `ReservaSingletonService` por un lock distribuido (Redis+RedLock) o confiar en bloqueos DB robustos.
-	- La cola de notificaciones en memoria debe reemplazarse por Redis/RabbitMQ en producción.
-
----
-
-Si quieres, puedo:
-- Añadir el script SQL completo en `scripts/init.sql` (actualizarlo para incluir `notificacion` y `row_version`).
-- Generar una migración EF Core y aplicarla.
-- Crear una colección Postman y tests de integración que levanten docker-compose.
-
-Dime qué prefieres y lo implemento.
-```
 
 
