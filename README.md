@@ -38,19 +38,11 @@ La siguiente es la querry exactamente como se entregó. El proyecto fue adaptado
 para mapear estas tablas mediante entidades en `Reserva.Domain/Entidades`.
 
 ```sql
--- Tabla para estados de asientos
-CREATE TABLE asientoEstado (
-	idEstadoAsiento INT PRIMARY KEY IDENTITY(1,1),
 	nombre VARCHAR(50) NOT NULL UNIQUE
 );
 GO
 
 -- Tabla para estados de reservas
-CREATE TABLE reservaEstado (
-	idEstadoReserva INT PRIMARY KEY IDENTITY(1,1),
-	nombre VARCHAR(50) NOT NULL UNIQUE
-);
-GO
 
 -- Tabla de usuarios
 CREATE TABLE usuario (
@@ -70,7 +62,6 @@ GO
 -- Tabla de asientos (CORREGIDA: ahora incluye idEstadio)
 CREATE TABLE asiento (
 	idAsiento INT PRIMARY KEY IDENTITY(1,1),
-	estado INT NOT NULL,
 	idEstadio INT NOT NULL,
 	FOREIGN KEY (estado) REFERENCES asientoEstado(idEstadoAsiento),
 	FOREIGN KEY (idEstadio) REFERENCES estadio(idEstadio)
@@ -80,15 +71,11 @@ GO
 -- Tabla de reservas
 CREATE TABLE reserva (
 	idReserva INT PRIMARY KEY IDENTITY(1,1),
-	idUsuario INT NOT NULL,
 	idasiento INT NOT NULL,
 	idestadio INT NOT NULL,
 	estado INT NOT NULL,
 	FOREIGN KEY (idUsuario) REFERENCES usuario(idUsuario),
 	FOREIGN KEY (idasiento) REFERENCES asiento(idAsiento),
-	FOREIGN KEY (idestadio) REFERENCES estadio(idEstadio),
-	FOREIGN KEY (estado) REFERENCES reservaEstado(idEstadoReserva)
-);
 GO
 
 -- Insertar datos básicos
