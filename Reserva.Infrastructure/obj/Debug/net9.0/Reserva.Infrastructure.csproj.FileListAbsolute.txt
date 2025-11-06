@@ -1,0 +1,17 @@
+C:\repos\TiketWaveProyec-main\Reserva.Infrastructure\obj\Debug\net9.0\Reserva.Infrastructure.csproj.AssemblyReference.cache
+C:\repos\TiketWaveProyec-main\Reserva.Infrastructure\obj\Debug\net9.0\Reserva.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+C:\repos\TiketWaveProyec-main\Reserva.Infrastructure\obj\Debug\net9.0\Reserva.Infrastructure.AssemblyInfoInputs.cache
+C:\repos\TiketWaveProyec-main\Reserva.Infrastructure\obj\Debug\net9.0\Reserva.Infrastructure.AssemblyInfo.cs
+C:\repos\TiketWaveProyec-main\Reserva.Infrastructure\obj\Debug\net9.0\Reserva.Infrastructure.csproj.CoreCompileInputs.cache
+C:\repos\TiketWaveProyec-main\Reserva.Infrastructure\bin\Debug\net9.0\Reserva.Infrastructure.deps.json
+C:\repos\TiketWaveProyec-main\Reserva.Infrastructure\bin\Debug\net9.0\Reserva.Infrastructure.runtimeconfig.json
+C:\repos\TiketWaveProyec-main\Reserva.Infrastructure\bin\Debug\net9.0\Reserva.Infrastructure.dll
+C:\repos\TiketWaveProyec-main\Reserva.Infrastructure\bin\Debug\net9.0\Reserva.Infrastructure.pdb
+C:\repos\TiketWaveProyec-main\Reserva.Infrastructure\bin\Debug\net9.0\Reserva.Domain.dll
+C:\repos\TiketWaveProyec-main\Reserva.Infrastructure\bin\Debug\net9.0\Reserva.Domain.pdb
+C:\repos\TiketWaveProyec-main\Reserva.Infrastructure\obj\Debug\net9.0\Reserva..956ED936.Up2Date
+C:\repos\TiketWaveProyec-main\Reserva.Infrastructure\obj\Debug\net9.0\Reserva.Infrastructure.dll
+C:\repos\TiketWaveProyec-main\Reserva.Infrastructure\obj\Debug\net9.0\refint\Reserva.Infrastructure.dll
+C:\repos\TiketWaveProyec-main\Reserva.Infrastructure\obj\Debug\net9.0\Reserva.Infrastructure.pdb
+C:\repos\TiketWaveProyec-main\Reserva.Infrastructure\obj\Debug\net9.0\Reserva.Infrastructure.genruntimeconfig.cache
+C:\repos\TiketWaveProyec-main\Reserva.Infrastructure\obj\Debug\net9.0\ref\Reserva.Infrastructure.dll

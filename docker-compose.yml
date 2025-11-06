@@ -1,0 +1,28 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: tiketwave-db
+    environment:
+      # Database user / password / database requested
+      POSTGRES_USER: tkwaver
+      POSTGRES_PASSWORD: tkwpsw987
+      POSTGRES_DB: tkwaver_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: tiketwave-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+# Uso:
+# docker-compose up -d
+
